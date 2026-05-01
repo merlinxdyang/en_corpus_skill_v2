@@ -21,6 +21,7 @@ English Corpus Prep Skill v2 是一个用于处理英文语料库的 Codex skill
 - Extracts text from PDFs with `pypdf` or `pdfplumber`.
 - Decodes TXT files to UTF-8 where possible.
 - Cleans text conservatively while preserving legal UTF-8 characters.
+- In the `policy` profile, classifies official-policy text into reusable document types before applying type-specific cleanup.
 - Mirrors the original relative directory structure into a new output folder.
 - Writes cleaned corpus files with `_cleaned.txt` suffix.
 - Optionally writes Penn Treebank-style POS tagged files with `_tagged.txt` suffix.
@@ -35,6 +36,7 @@ English Corpus Prep Skill v2 是一个用于处理英文语料库的 Codex skill
 - 使用 `pypdf` 或 `pdfplumber` 抽取 PDF 文本。
 - 尽可能将 TXT 解码为 UTF-8。
 - 使用保守清洗规则，保留合法 UTF-8 字符。
+- 在 `policy` profile 中，先识别通用文档类型，再执行分类型清洗。
 - 在新输出目录中镜像原始相对目录结构。
 - 清洗后语料文件统一加 `_cleaned.txt` 后缀。
 - 可选生成 Penn Treebank 风格词性标注文件，统一加 `_tagged.txt` 后缀。
@@ -206,7 +208,8 @@ python3 skills/public/english-corpus-prep/scripts/build_corpus.py <input-path...
   [--copy-sidecars] \
   [--relative-paths] \
   [--max-workers N] \
-  [--cleaning-profile generic|academic|policy|light] \
+  [--cleaning-profile generic|academic|policy|policy_strict|light] \
+  [--keep-tables] \
   [--collection-name NAME]
 ```
 
@@ -259,14 +262,19 @@ Write relative paths in manifests and reports. Recommended when output may be sh
 
 Number of corpus files processed concurrently. Use `1` for maximum simplicity, or `4` for moderate parallelism.
 
-### `--cleaning-profile generic|academic|policy|light`
+### `--cleaning-profile generic|academic|policy|policy_strict|light`
 
 Cleaning strength.
 
 - `generic`: default, general English corpus cleaning.
 - `academic`: for papers and academic reports; removes trailing references/bibliography sections.
-- `policy`: for institutional and policy reports; conservative, no hard-coded agency names.
+- `policy`: for official policy corpora; classifies broad document types and removes reusable boilerplate without hard-coded sample-document content.
+- `policy_strict`: stronger web/navigation cleanup for heavily scraped policy corpora.
 - `light`: minimal normalization only.
+
+### `--keep-tables`
+
+Keep table-like blocks in Federal Register-style running-text output. By default, likely tables are removed because they often harm sentence-level corpus analysis; use this flag when tables are part of the research object.
 
 ### `--collection-name NAME`
 
@@ -284,7 +292,8 @@ python3 skills/public/english-corpus-prep/scripts/build_corpus.py <输入路径.
   [--copy-sidecars] \
   [--relative-paths] \
   [--max-workers N] \
-  [--cleaning-profile generic|academic|policy|light] \
+  [--cleaning-profile generic|academic|policy|policy_strict|light] \
+  [--keep-tables] \
   [--collection-name NAME]
 ```
 
@@ -337,14 +346,19 @@ python3 skills/public/english-corpus-prep/scripts/build_corpus.py <输入路径.
 
 并行处理语料文件数量。`1` 最简单稳定；`4` 适合中等并行。
 
-### `--cleaning-profile generic|academic|policy|light`
+### `--cleaning-profile generic|academic|policy|policy_strict|light`
 
 清洗强度。
 
 - `generic`: 默认，通用英文语料清洗。
 - `academic`: 适合论文和学术报告，会删除尾部 references/bibliography 区段。
-- `policy`: 适合机构或政策报告，保守处理，不写死机构名。
+- `policy`: 适合官方政策语料；先识别通用文档类型，再删除可复用的 boilerplate，不写死某个示范文档的正文内容。
+- `policy_strict`: 适合重度网页抓取语料，会更强地清理导航、搜索界面和网页模板。
 - `light`: 只做最小规范化。
+
+### `--keep-tables`
+
+保留 Federal Register 风格文本中的表格块。默认会删除疑似表格，因为表格通常会干扰句子级语料分析；如果表格本身就是研究对象，请使用此参数。
 
 ### `--collection-name NAME`
 
@@ -385,6 +399,26 @@ This_DT is_VBZ a_DT sample_NN ._.
 - spaCy 英文模型的 `token.tag_`
 
 内置 `heuristic` 模式必须显式选择，因为它不是真正的统计或神经网络 tagger。
+
+---
+
+## Policy Cleaning Model
+
+The `policy` profile is designed for mixed U.S. official-policy corpora where text can come from PDFs, TXT exports, congressional XML-derived text, or scraped index/search pages. It does not use one global deletion regex. It first assigns a broad document type, then applies conservative cleanup that is reusable across files:
+
+- `federal_register_pdf_text`: removes Federal Register control lines, FR notices, billing codes, PDF extraction paths, and likely table blocks unless `--keep-tables` is set.
+- `congress_xml_text`: removes XML/front-matter boilerplate and table-of-contents entries while preserving statutory clauses, fiscal-year appropriations, amendment lists, and other numbered legal text.
+- `whitehouse_index` and `nist_search_results`: removes web navigation, search UI, link labels, contact fragments, and URLs; these files are marked as not recommended for the primary policy corpus in the report.
+- `generic_official_text`: applies shared UTF-8 normalization, layout-artifact cleanup, and conservative paragraph filtering.
+
+## 政策语料清洗模型
+
+`policy` profile 面向混合的美国官方政策语料：来源可能是 PDF、TXT 导出、国会 XML 转文本，也可能是网页索引页或搜索结果页。它不会使用一个全局大正则直接删除内容，而是先判断通用文档类型，再执行可复用的保守清洗：
+
+- `federal_register_pdf_text`: 删除 Federal Register 控制行、FR notice、billing code、PDF 抽取路径，以及疑似表格块；如果使用 `--keep-tables` 则保留表格。
+- `congress_xml_text`: 删除 XML/front-matter boilerplate 和目录条目，但保留法条、财政年度拨款、修正案列表等带编号的合法正文。
+- `whitehouse_index` 和 `nist_search_results`: 删除网页导航、搜索界面、链接标签、联系方式片段和 URL；报告中会标记为不建议纳入 primary policy corpus。
+- `generic_official_text`: 执行共享 UTF-8 规范化、版式噪声清理和保守段落过滤。
 
 ---
 
@@ -615,6 +649,9 @@ Current tests cover:
 - metadata candidate detection
 - `--tagger none`
 - explicit `--tagger heuristic` output shape
+- policy-profile web boilerplate cleanup
+- congressional XML/front-matter cleanup without dropping numbered substantive clauses
+- split-token repair without merging ordinary wrapped phrases
 
 ## 测试
 
@@ -633,6 +670,9 @@ python3 -B -m unittest discover -s tests -v
 - metadata candidate 识别
 - `--tagger none`
 - 显式 `--tagger heuristic` 输出格式
+- `policy` profile 的网页 boilerplate 清理
+- 国会 XML/front-matter 清理，并保留带编号的实质性条款
+- 断词修复，同时避免把普通换行短语错误粘连
 
 ---
 

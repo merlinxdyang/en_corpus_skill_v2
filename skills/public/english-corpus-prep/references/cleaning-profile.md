@@ -35,7 +35,22 @@ For papers, dissertations, and academic reports. Applies generic rules and remov
 
 ### `policy`
 
-For government, institutional, or policy reports. Currently follows the same conservative behavior as `academic`, without hard-coded agency names or project-specific phrases.
+For government, institutional, or policy corpora. This profile first classifies broad document types and then applies reusable type-specific cleanup. It does not add one-off deletion rules for a single sample document.
+
+Document types currently used by the profile:
+
+- `federal_register_pdf_text`: removes Federal Register control lines, FR notices, billing codes, PDF extraction paths, and likely table blocks unless `--keep-tables` is enabled.
+- `congress_xml_text`: removes XML/front-matter boilerplate and table-of-contents entries while preserving numbered substantive clauses, appropriations, amendments, and fiscal-year lines.
+- `whitehouse_index` and `nist_search_results`: removes common navigation/search UI, link labels, contact fragments, and URLs; these are marked as not recommended for the primary policy corpus.
+- `generic_official_text`: applies shared normalization and conservative layout cleanup.
+
+### `policy_strict`
+
+For heavily scraped policy corpora with substantial navigation/sidebar residue. Applies the `policy` model plus stronger web/navigation boilerplate filtering.
+
+### `--keep-tables`
+
+This flag is not a profile, but it changes the `policy` profile's Federal Register handling. Use it when table content is analytically important; otherwise the default favors running prose suitable for sentence/token analysis.
 
 ## Project-Specific Rules
 

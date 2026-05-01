@@ -40,7 +40,7 @@ python3 scripts/build_corpus.py <input-path> \
   --copy-sidecars \
   --relative-paths \
   --max-workers 4 \
-  --cleaning-profile generic
+  --cleaning-profile policy
 ```
 
 For dependency-free cleaned output:
@@ -58,8 +58,22 @@ python3 scripts/build_corpus.py <input-path> --output-dir <output-dir> --recursi
 - `--sidecar-policy copy|manifest-only|skip`: copy, only log, or ignore non-corpus files.
 - `--relative-paths`: avoid absolute paths in reports/manifests.
 - `--max-workers N`: process corpus files concurrently.
-- `--cleaning-profile generic|academic|policy|light`: choose cleaning strength.
+- `--cleaning-profile generic|academic|policy|policy_strict|light`: choose cleaning strength.
+  - `policy`: document-type-aware cleanup for official policy PDFs/TXT exports, congressional XML text, and scraped resource/index pages.
+  - `policy_strict`: stronger web/navigation boilerplate cleanup for heavily scraped policy corpora.
+- `--keep-tables`: keep Federal Register-style table blocks. By default, likely tables are removed from Federal Register running-text output.
 - `--collection-name NAME`: override output tree prefix.
+
+## Policy Cleaning Model
+
+The `policy` profile first classifies TXT/PDF-extracted text into broad, reusable document types, then applies conservative type-specific cleanup:
+
+- `federal_register_pdf_text`: remove Federal Register control lines, FR doc notices, billing codes, PDF extraction paths, and likely table blocks unless `--keep-tables` is set.
+- `congress_xml_text`: remove XML/front-matter boilerplate and table-of-contents entries while preserving numbered statutory clauses, fiscal-year lines, appropriations, and amendments.
+- `whitehouse_index` and `nist_search_results`: remove common web navigation, search UI, link labels, URLs, emails, and contact boilerplate; these are flagged as not recommended for the primary policy corpus.
+- `generic_official_text`: apply shared UTF-8 normalization, layout-artifact removal, and conservative paragraph cleanup.
+
+Do not add one-off content restrictions for a specific sample document. Add a new document type or profile only when the rule is reusable and has before/after tests.
 
 ## POS Tagging Contract
 

@@ -53,6 +53,210 @@ UTF16_ENCODINGS = ("utf-16", "utf-16-le", "utf-16-be")
 LEGACY_ENCODINGS = ("gb18030", "big5", "shift_jis", "cp1252", "latin-1")
 TOKEN_PATTERN = re.compile(r"\w+(?:['’]\w+)?|\d+(?:\.\d+)?|\.{3}|--|[^\w\s]", re.UNICODE)
 URL_PATTERN = re.compile(r"https?://\S+|www\.\S+", re.IGNORECASE)
+MIME_LINE_PATTERN = re.compile(r"^[a-z]+/[a-z0-9.+-]+$", re.IGNORECASE)
+PATH_LIKE_PATTERN = re.compile(r"[A-Za-z]:\\|[/\\][A-Za-z0-9_.-]+[/\\][A-Za-z0-9_.-]+")
+FRAGMENT_LEAD_PATTERN = re.compile(r"^[a-z]{1,4}\b")
+FRAGMENT_TAIL_PATTERN = re.compile(r"([A-Za-z]{3,12})$")
+FRAGMENT_LEAD_LONG_PATTERN = re.compile(r"^[a-z]{4,8}\b")
+MONTH_DATE_LINE_PATTERN = re.compile(
+    r"^(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2},\s+\d{4}$",
+    re.IGNORECASE,
+)
+SOCIAL_SHARE_PATTERN = re.compile(
+    r"(share to facebook|share to x|share to linkedin|share this page|share via email|share ia email)",
+    re.IGNORECASE,
+)
+FEDERAL_REGISTER_CONTROL_PATTERNS = (
+    re.compile(r"VerDate\s+.*?(?:RULES\d*|PRESDOC\d*|EXECORD\d*|MISCELLANEOUS)?\s*$", re.IGNORECASE),
+    re.compile(r"^\d{4,6}\s+Federal Register\s*/\s*Vol\..*$", re.IGNORECASE),
+    re.compile(r"^\s*\[FR Doc\..*$", re.IGNORECASE),
+    re.compile(r"^\s*Filed\s+\d+[-/]\d+[-/]\d+;\s+.*$", re.IGNORECASE),
+    re.compile(r"^\s*Billing code\s+.*$", re.IGNORECASE),
+    re.compile(r"^.*\.EPS</GPH>.*$", re.IGNORECASE),
+    re.compile(r"^[A-Za-z0-9_-]+\s+on\s+DSK[A-Z0-9]+.*$", re.IGNORECASE),
+    re.compile(r"^\s*PO\s+\d+\s+Frm\s+\d+.*$", re.IGNORECASE),
+    re.compile(r"^\s*Jkt\s+\d+.*$", re.IGNORECASE),
+)
+INLINE_BOILERPLATE_PATTERNS = (
+    re.compile(r"\bBILLING CODE\s+[0-9A-Z]+(?:[-–—][0-9A-Z]+)*(?:\s*[-–—]\s*[A-Z])?\b", re.IGNORECASE),
+    re.compile(r"\bwas this page helpful\??\b", re.IGNORECASE),
+    re.compile(r"\bback to top\b", re.IGNORECASE),
+    re.compile(r"\blast modified:\s*(?:[A-Za-z]+\s+\d{1,2},\s+\d{4})?\b", re.IGNORECASE),
+    re.compile(r"\b\d+\s+of\s+\d+\s+pages?\s+of\s+\d+\s+results,\s*ordered by relevance\b\.?", re.IGNORECASE),
+    re.compile(r"\)\s*or https:// means you've safely connected to the \.gov website\.", re.IGNORECASE),
+    re.compile(r"share sensitive information only on official,\s*secure websites\.?", re.IGNORECASE),
+    re.compile(r"\bnext\s*[»>]+\b", re.IGNORECASE),
+)
+
+BOILERPLATE_PREFIXES = (
+    "skip to main content",
+    "official websites use .gov",
+    "a .gov website belongs to an official government organization",
+    "secure .gov websites use https",
+    "share sensitive information only on official, secure websites",
+    "search results |",
+    "search nist",
+    "include archived content",
+    "use \"\" to search for an exact phrase",
+    "home • the administration • office of science and technology policy",
+)
+
+NAV_SINGLE_LINES = {
+    "about",
+    "pressroom",
+    "ostp blog",
+    "divisions",
+    "initiatives",
+    "r&d budgets",
+    "resource library",
+    "nstc",
+    "pcast",
+    "contact",
+    "members",
+    "executive order",
+    "committees",
+    "documents & reports",
+    "archives",
+    "search",
+    "relevance",
+    "date",
+    "next »",
+    "meetings",
+    "quick links",
+    "webcasts",
+    "news archive",
+    "connect with pcast",
+}
+NAV_SCRAPE_HINTS = (
+    "home",
+    "about",
+    "contact",
+    "reports",
+    "documents",
+    "resource library",
+    "view all reports",
+    "archives",
+    "search",
+    "website",
+    "office of science and technology policy",
+    "the administration",
+)
+COMMON_FUNCTION_WORDS = {
+    "a",
+    "an",
+    "and",
+    "as",
+    "at",
+    "be",
+    "by",
+    "for",
+    "from",
+    "if",
+    "in",
+    "into",
+    "is",
+    "it",
+    "may",
+    "might",
+    "must",
+    "new",
+    "of",
+    "on",
+    "or",
+    "should",
+    "that",
+    "the",
+    "their",
+    "this",
+    "to",
+    "was",
+    "were",
+    "will",
+    "would",
+    "was",
+    "with",
+}
+LINK_LABEL_PATTERN = re.compile(
+    r"^(full report|blog post|fact sheet|press release|webcast|backgrounder|executive summary|executive report|references|infographic|agenda|presentation|annex reports|expert contributors?|working group members|white house report|request for information responses|forensics addendum)(?:\s*\(pdf\))?$",
+    re.IGNORECASE,
+)
+STANDALONE_ENUMERATOR_PATTERN = re.compile(
+    r"^\(?[a-zA-Z0-9ivxlcdmIVXLCDM]{1,6}\)?\.?$|^[A-Z]\)$|^\([A-Z]\)$|^\([ivxlcdm]+\)$|^\([0-9]+\)$"
+)
+SPLIT_TOKEN_REPAIRS = {
+    "Governm ent": "Government",
+    "governm ent": "government",
+    "cont racting": "contracting",
+    "Cont racting": "Contracting",
+    "servi ces": "services",
+    "Servi ces": "Services",
+    "recove ry": "recovery",
+    "Recove ry": "Recovery",
+    "Powe rs": "Powers",
+    "powe rs": "powers",
+    "consti tuted": "constituted",
+    "Consti tuted": "Constituted",
+    "cons tituted": "constituted",
+    "Cons tituted": "Constituted",
+    "intellect ual": "intellectual",
+    "Intellect ual": "Intellectual",
+    "opport unity": "opportunity",
+    "Opport unity": "Opportunity",
+    "cust omer": "customer",
+    "Cust omer": "Customer",
+    "memor andum": "memorandum",
+    "Memor andum": "Memorandum",
+    "establ ished": "established",
+    "Establ ished": "Established",
+    "docum ent": "document",
+    "Docum ent": "Document",
+    "submis sion": "submission",
+    "Submis sion": "Submission",
+    "ac counts": "accounts",
+    "Ac counts": "Accounts",
+    "rev iew": "review",
+    "Rev iew": "Review",
+    "pate nt": "patent",
+    "Pate nt": "Patent",
+    "exc ess": "excess",
+    "Exc ess": "Excess",
+    "Proposedrule": "Proposed rule",
+    "proposedrule": "proposed rule",
+    "Finalrule": "Final rule",
+    "finalrule": "final rule",
+    "Thisproposed": "This proposed",
+    "thisproposed": "this proposed",
+}
+TOKEN_SPLIT_PREFIXES = {
+    "ac",
+    "ad",
+    "ag",
+    "al",
+    "ap",
+    "as",
+    "at",
+    "co",
+    "com",
+    "con",
+    "cons",
+    "de",
+    "dis",
+    "ex",
+    "im",
+    "in",
+    "inter",
+    "micro",
+    "mis",
+    "non",
+    "over",
+    "pre",
+    "pro",
+    "re",
+    "sub",
+    "super",
+    "trans",
+    "un",
+}
 
 
 @dataclass(frozen=True)
@@ -70,6 +274,8 @@ class ProcessRecord:
     source: str
     relative_path: str
     detected_format: str
+    doc_type: str
+    recommended_for_primary_policy_corpus: bool
     source_encoding: str
     converted_to_utf8: bool
     cleaned_output: str
@@ -109,6 +315,13 @@ class ExtractedText:
     converted_to_utf8: bool
     pdf_pages: int | None = None
     pdf_empty_pages: int | None = None
+
+
+@dataclass(frozen=True)
+class CleanedText:
+    text: str
+    doc_type: str
+    recommended_for_primary_policy_corpus: bool
 
 
 @dataclass(frozen=True)
@@ -171,9 +384,14 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--cleaning-profile",
-        choices=("generic", "academic", "policy", "light"),
+        choices=("generic", "academic", "policy", "policy_strict", "light"),
         default="generic",
         help="Cleaning strength. Default: generic.",
+    )
+    parser.add_argument(
+        "--keep-tables",
+        action="store_true",
+        help="Keep table-like blocks in cleaned text. By default, likely tables are removed from Federal Register running-text output.",
     )
     parser.add_argument(
         "--collection-name",
@@ -395,6 +613,42 @@ def extract_pdf(path: Path) -> ExtractedText:
     ) from Exception(" | ".join(errors))
 
 
+def classify_doc(name: str, text: str) -> str:
+    head = text[:4000]
+    lower_head = head.lower()
+    if "search results | nist" in lower_head or "1 of 1000 pages" in lower_head:
+        return "nist_search_results"
+    if "pcast documents & reports | the white house" in lower_head:
+        return "whitehouse_index"
+    if "text/xml" in lower_head and ("u.s. senate" in lower_head or "congress" in lower_head):
+        return "congress_xml_text"
+    if "federal register" in lower_head or "fr doc." in text.lower() or "verdate" in lower_head:
+        return "federal_register_pdf_text"
+    lower_name = name.lower()
+    if "nist" in lower_name and ("search" in lower_head or "last modified" in lower_head):
+        return "nist_search_results"
+    return "generic_official_text"
+
+
+def recommended_for_primary_policy_corpus(doc_type: str) -> bool:
+    return doc_type not in {"nist_search_results", "whitehouse_index"}
+
+
+def build_raw_vocab(paths: Sequence[Path]) -> Counter[str]:
+    vocab: Counter[str] = Counter()
+    for path in paths:
+        if path.suffix.lower() not in TXT_EXTENSIONS:
+            continue
+        try:
+            text, _, _ = decode_to_text(path.read_bytes(), path)
+        except Exception:
+            continue
+        text = normalize_unicode_text(text)
+        for word in re.findall(r"\b[A-Za-z][A-Za-z'-]{1,}\b", text):
+            vocab[word.lower()] += 1
+    return vocab
+
+
 def normalize_unicode_text(text: str) -> str:
     replacements = {
         "\u00ad": "",
@@ -414,45 +668,590 @@ def normalize_unicode_text(text: str) -> str:
     return unicodedata.normalize("NFKC", text)
 
 
-def clean_text(text: str, profile: str) -> str:
-    text = normalize_unicode_text(text)
-    text = re.sub(r"([^\W\d_])-\n([^\W\d_])", r"\1\2", text, flags=re.UNICODE)
-    text = re.sub(r"[ \t]+", " ", text)
-    text = re.sub(r"\n{4,}", "\n\n\n", text)
+def clean_text(
+    text: str,
+    profile: str,
+    source_name: str = "",
+    vocab: Counter[str] | None = None,
+    keep_tables: bool = False,
+) -> CleanedText:
+    raw = normalize_unicode_text(text)
+    doc_type = classify_doc(source_name, raw)
+    primary_recommendation = recommended_for_primary_policy_corpus(doc_type)
 
-    lines: list[str] = []
+    if profile == "light":
+        lightly_cleaned = re.sub(r"([^\W\d_])-\n([^\W\d_])", r"\1\2", raw, flags=re.UNICODE)
+        lightly_cleaned = re.sub(r"[ \t]+", " ", lightly_cleaned)
+        lightly_cleaned = re.sub(r"\n{3,}", "\n\n", lightly_cleaned).strip()
+        return CleanedText(lightly_cleaned, doc_type, primary_recommendation)
+
+    lines = normalize_extracted_lines(raw.splitlines(), profile, doc_type)
+    lines = remove_contextual_noise_lines(lines, profile, doc_type)
+    lines = remove_signature_blocks(lines, doc_type)
+
+    if doc_type == "congress_xml_text":
+        lines = remove_toc_blocks_congress(lines)
+        lines = remove_standalone_enumerators(lines)
+
+    if not keep_tables and doc_type == "federal_register_pdf_text":
+        lines = remove_table_blocks(lines)
+
+    if doc_type != "congress_xml_text":
+        lines = drop_document_noise(lines, strict=profile == "policy_strict")
+    lines = repair_broken_word_wraps(lines)
+    lines = drop_repeated_noisy_lines(lines)
+
+    cleaned_text = join_wrapped_lines(lines, doc_type)
+    cleaned_text = repair_spacing_punct(cleaned_text)
+    cleaned_text = repair_split_tokens(cleaned_text, vocab or Counter())
+    cleaned_text = repair_spacing_punct(cleaned_text)
+    cleaned_text = paragraph_filter(cleaned_text, doc_type)
+    cleaned_text = "\n\n".join(
+        re.sub(r"[ \t]+", " ", paragraph).strip()
+        for paragraph in cleaned_text.split("\n\n")
+        if paragraph.strip()
+    )
+    return CleanedText(cleaned_text.strip(), doc_type, primary_recommendation)
+
+
+def normalize_extracted_lines(lines: Sequence[str], profile: str, doc_type: str) -> list[str]:
+    policy_like = profile in {"policy", "policy_strict"}
+    policy_strict = profile == "policy_strict"
+    normalized: list[str] = []
     in_references_tail = False
-    for line in text.split("\n"):
-        cleaned = line.strip()
+    drop_following_last_modified_date = False
+    for line in lines:
+        cleaned = re.sub(r"[ \t]+", " ", line).strip()
         if not cleaned:
-            if lines and lines[-1] != "":
-                lines.append("")
+            if normalized and normalized[-1] != "":
+                normalized.append("")
             continue
 
+        if policy_like:
+            cleaned = strip_inline_boilerplate(cleaned)
+            cleaned = re.sub(r"\s{2,}", " ", cleaned).strip(" |:-")
+            if not cleaned:
+                continue
+
         lowered = cleaned.lower()
+        if policy_like and lowered in {"last modified", "last modified:"}:
+            drop_following_last_modified_date = True
+            continue
+        if policy_like and drop_following_last_modified_date and MONTH_DATE_LINE_PATTERN.fullmatch(cleaned):
+            drop_following_last_modified_date = False
+            continue
+        drop_following_last_modified_date = False
+
         if re.fullmatch(r"page\s+\d+(\s+of\s+\d+)?", lowered):
             continue
         if re.fullmatch(r"\d+", cleaned):
             continue
+        if policy_strict and re.fullmatch(r"[^\w\s]{1,3}", cleaned):
+            continue
         if lowered == "this page is intentionally left blank.":
             continue
-
-        if profile in {"academic", "policy"} and lowered in {"references", "bibliography", "works cited"}:
+        if should_drop_boilerplate_line(cleaned, lowered):
+            continue
+        if policy_strict and looks_like_navigation_scrape(cleaned):
+            continue
+        if profile in {"academic", "policy", "policy_strict"} and lowered in {"references", "bibliography", "works cited"}:
             in_references_tail = True
             continue
         if in_references_tail:
             continue
-
-        if profile != "light":
+        if doc_type in {"nist_search_results", "whitehouse_index"}:
             cleaned = URL_PATTERN.sub("", cleaned).strip()
-            if not cleaned:
+        elif re.fullmatch(r"https?://\S+|www\.\S+", cleaned, flags=re.IGNORECASE):
+            continue
+        if cleaned:
+            normalized.append(cleaned)
+    return normalized
+
+
+def remove_contextual_noise_lines(lines: list[str], profile: str, doc_type: str) -> list[str]:
+    out: list[str] = []
+    skip_next_date = False
+    for line in lines:
+        s = line.strip()
+        if not s:
+            continue
+
+        if doc_type in {"nist_search_results", "whitehouse_index"}:
+            s = re.sub(r"\s*Was this page helpful\??.*$", "", s, flags=re.IGNORECASE).strip()
+            s = re.sub(r"\s+Registration Contact\b.*$", "", s, flags=re.IGNORECASE).strip()
+            s = re.sub(r"\b[\w.+-]+@[\w.-]+\.\w+\b", "", s)
+            s = re.sub(r"\(\d{3}\)\s*\d{3}[- ]\d{4}", "", s)
+            if doc_type == "whitehouse_index":
+                s = s.replace("PCAST Documents & Reports | The White House", "PCAST Documents & Reports")
+                s = re.sub(r"\s*Skip to main content.*$", "", s, flags=re.IGNORECASE).strip()
+                s = re.sub(r"^Home\s+•.*$", "", s).strip()
+            if doc_type == "nist_search_results":
+                s = re.sub(r"\s+Quick Links\s+Download.*?Overview of the AI RMF\s+", " ", s)
+
+        if doc_type == "nist_search_results" and re.match(r"^Last modified:$", s, re.IGNORECASE):
+            skip_next_date = True
+            continue
+        if skip_next_date:
+            if MONTH_DATE_LINE_PATTERN.fullmatch(s):
+                skip_next_date = False
                 continue
+            skip_next_date = False
 
-        lines.append(cleaned)
+        if is_source_noise_line(s, doc_type):
+            continue
+        if doc_type == "whitehouse_index":
+            if LINK_LABEL_PATTERN.match(s):
+                continue
+            if re.match(r"^[A-Z][a-z]+ \d{1,2}, \d{4} (?:b\s*log post|blog post|press release|fact sheet)(?: .*)?$", s, re.IGNORECASE):
+                continue
+        out.append(s)
+    return out
 
-    cleaned_text = "\n".join(lines)
-    cleaned_text = re.sub(r"\n{3,}", "\n\n", cleaned_text)
-    return cleaned_text.strip()
+
+def is_source_noise_line(line: str, doc_type: str) -> bool:
+    s = line.strip()
+    lowered = s.lower()
+    if not s:
+        return True
+    if any(pattern.search(s) for pattern in FEDERAL_REGISTER_CONTROL_PATTERNS):
+        return True
+    if re.match(r"^https?://\S+$", s):
+        return True
+    if doc_type in {"nist_search_results", "whitehouse_index"}:
+        if lowered in NAV_SINGLE_LINES or lowered in {"search results", "search nist", "official websites use .gov"}:
+            return True
+        if "use \"\" to search for an exact phrase" in lowered:
+            return True
+        if "pages of" in lowered and "ordered by" in lowered:
+            return True
+        if "means you've safely connected" in lowered:
+            return True
+        if "share sensitive information only" in lowered:
+            return True
+        if LINK_LABEL_PATTERN.match(s):
+            return True
+    if doc_type == "congress_xml_text":
+        if s in {"U.S. Senate", "text/xml", "EN"}:
+            return True
+        if s.startswith("Pursuant to Title 17 Section 105"):
+            return True
+    return False
+
+
+def remove_signature_blocks(lines: list[str], doc_type: str) -> list[str]:
+    if doc_type != "federal_register_pdf_text":
+        return lines
+    out = list(lines)
+    for marker in ("THE WHITE HOUSE,", "The White House,", "Andrei Iancu,"):
+        indexes = [idx for idx, line in enumerate(out) if line.strip().startswith(marker)]
+        if indexes and len(out) - indexes[-1] <= 25:
+            return out[: indexes[-1]]
+    return out
+
+
+def remove_toc_blocks_congress(lines: list[str]) -> list[str]:
+    out: list[str] = []
+    toc_mode = False
+    for line in lines:
+        s = line.strip()
+        if not s:
+            continue
+        if toc_mode:
+            if is_congress_toc_entry(s):
+                continue
+            toc_mode = False
+        if re.search(r"\btable of contents\b", s, re.IGNORECASE) and re.search(r"\bfollows\b", s, re.IGNORECASE):
+            before = re.split(r"(?i)(?:\([a-z]\)\s*)?The table of contents\b.*?\bfollows:?", s)[0].strip()
+            if before and len(re.findall(r"[A-Za-z]+", before)) >= 4 and "table of contents" not in before.lower():
+                out.append(before)
+            toc_mode = True
+            continue
+        if re.match(r"^Sec\.\s+\d+[A-Za-z]?\.", s):
+            continue
+        out.append(s)
+    return out
+
+
+def is_congress_toc_entry(line: str) -> bool:
+    if re.match(r"^Sec\.\s+\d+[A-Za-z]?\.", line):
+        return True
+    if re.match(r"^(DIVISION|TITLE|Subtitle|PART|Subpart|CHAPTER)\s+[A-Z0-9IVXLC-]+", line):
+        return True
+    if re.match(r"^\d+[A-Z]?\.$", line):
+        return False
+    return False
+
+
+def remove_standalone_enumerators(lines: list[str]) -> list[str]:
+    return [line for line in lines if not STANDALONE_ENUMERATOR_PATTERN.match(line.strip())]
+
+
+def remove_table_blocks(lines: list[str]) -> list[str]:
+    out: list[str] = []
+    in_table = False
+    for line in lines:
+        s = line.strip()
+        if re.match(r"^TABLE\s+\d+[A-Z]?\s*[-—]", s, re.IGNORECASE):
+            in_table = True
+            continue
+        if in_table:
+            if re.match(r"^\([a-z]\)\s+[A-Z]", s) or re.match(
+                r"^(In|The|This|Applicants|Overall|Consistent|During|For)\b", s
+            ):
+                in_table = False
+                out.append(s)
+            continue
+
+        numeric_chars = sum(ch.isdigit() or ch in "$%+[]" for ch in s)
+        alpha_words = re.findall(r"[A-Za-z]{2,}", s)
+        if numeric_chars > 8 and len(alpha_words) < 8:
+            continue
+        if re.match(
+            r"^(Fee description|Current fees|Final rule|Dollar change|Percentage change|FY \d{4}|entity|large|small|micro)",
+            s,
+            re.IGNORECASE,
+        ):
+            continue
+        out.append(s)
+    return out
+
+
+def is_heading_like(line: str) -> bool:
+    s = line.strip()
+    if not s:
+        return False
+    if re.match(r"^(Section|Sec\.)\s+\d+", s):
+        return True
+    if re.match(r"^[IVXLC]+\.\s+[A-Z]", s):
+        return True
+    if re.match(r"^[A-Z][A-Za-z0-9 ,;:&'()/-]{2,90}$", s) and not re.search(r"[.!?;:]$", s):
+        words = s.split()
+        if words and sum(1 for word in words if word[:1].isupper() or word.isupper()) / len(words) > 0.45:
+            return len(words) <= 12
+    return False
+
+
+def join_wrapped_lines(lines: list[str], doc_type: str) -> str:
+    if doc_type in {"nist_search_results", "whitehouse_index"}:
+        return "\n\n".join(line for line in lines if line.strip())
+
+    paragraphs: list[str] = []
+    buffer: list[str] = []
+
+    def flush() -> None:
+        nonlocal buffer
+        if buffer:
+            paragraphs.append(" ".join(buffer))
+            buffer = []
+
+    for line in lines:
+        s = line.strip()
+        if not s:
+            flush()
+            continue
+        if is_heading_like(s):
+            flush()
+            paragraphs.append(s)
+            continue
+        if re.match(r"^(Section|Sec\.)\s+\d+", s):
+            flush()
+            buffer = [s]
+            continue
+        buffer.append(s)
+        if re.search(r"[.!?;:]$", s) and len(" ".join(buffer)) > 120:
+            flush()
+
+    flush()
+    return "\n\n".join(paragraphs)
+
+
+def repair_spacing_punct(text: str) -> str:
+    text = re.sub(r"\s+([,.;:!?])", r"\1", text)
+    text = re.sub(r"\(\s+", "(", text)
+    text = re.sub(r"\s+\)", ")", text)
+    text = re.sub(r"\[\s+", "[", text)
+    text = re.sub(r"\s+\]", "]", text)
+    text = re.sub(r"\bU\.\s*S\.\s*C\.", "U.S.C.", text)
+    text = re.sub(r"\bC\.\s*F\.\s*R\.", "C.F.R.", text)
+    text = re.sub(r"\bU\.\s*S\.", "U.S.", text)
+    text = re.sub(r"https?://\s*\S*", "", text)
+    text = re.sub(r"www\.\s*\S*", "", text)
+    text = re.sub(r"([A-Za-z]+)-\s+(\d+)", r"\1-\2", text)
+    text = re.sub(r"\b([A-Za-z]{2,})-\s+([A-Za-z]{2,})\b", r"\1-\2", text)
+    text = re.sub(r"\s{2,}", " ", text)
+    text = re.sub(r"\n\s+", "\n", text)
+    text = re.sub(r"([.;:!?])([A-Z])", r"\1 \2", text)
+    return text.strip()
+
+
+def repair_split_tokens(text: str, vocab: Counter[str]) -> str:
+    for bad, good in SPLIT_TOKEN_REPAIRS.items():
+        text = re.sub(r"\b" + re.escape(bad) + r"\b", good, text)
+
+    def merge_if_attested(match: re.Match[str]) -> str:
+        left, right = match.group(1), match.group(2)
+        combo = (left + right).lower()
+        if len(right) > 3 and left.lower() not in TOKEN_SPLIT_PREFIXES:
+            return match.group(0)
+        if left.lower() in COMMON_FUNCTION_WORDS or right.lower() in COMMON_FUNCTION_WORDS:
+            return match.group(0)
+        if vocab.get(combo, 0) >= 2 and len(combo) >= 7:
+            return left + right
+        return match.group(0)
+
+    text = re.sub(r"\b([A-Za-z]{4,12})\s+([a-z]{2,8})\b", merge_if_attested, text)
+
+    def merge_prefix(match: re.Match[str]) -> str:
+        left, right = match.group(1), match.group(2)
+        combo = (left + right).lower()
+        if left.lower() in TOKEN_SPLIT_PREFIXES and vocab.get(combo, 0) >= 2 and len(combo) >= 6:
+            return (left + right).capitalize() if left[:1].isupper() else left + right
+        return match.group(0)
+
+    return re.sub(r"\b([A-Za-z]{2,8})\s+([a-z]{2,12})\b", merge_prefix, text)
+
+
+def paragraph_filter(text: str, doc_type: str) -> str:
+    paragraphs = [paragraph.strip() for paragraph in re.split(r"\n{2,}", text) if paragraph.strip()]
+    kept: list[str] = []
+    seen: set[str] = set()
+    for paragraph in paragraphs:
+        lowered = paragraph.lower()
+        if any(
+            phrase in lowered
+            for phrase in (
+                "official websites use .gov",
+                "secure .gov websites use https",
+                "pursuant to title 17 section 105",
+                "this file is not subject to copyright protection",
+                "skip to main content",
+                "skip to footer",
+            )
+        ):
+            continue
+        if doc_type == "whitehouse_index" and LINK_LABEL_PATTERN.match(paragraph):
+            continue
+        if paragraph.lower() in NAV_SINGLE_LINES:
+            continue
+        words = re.findall(r"[A-Za-z]+", paragraph)
+        if len(words) < 3 and not is_heading_like(paragraph):
+            continue
+        key = re.sub(r"\s+", " ", lowered)
+        if key in seen:
+            continue
+        seen.add(key)
+        kept.append(paragraph)
+    return "\n\n".join(kept)
+
+
+def should_drop_boilerplate_line(cleaned: str, lowered: str) -> bool:
+    if any(lowered.startswith(prefix) for prefix in BOILERPLATE_PREFIXES):
+        return True
+
+    if lowered in NAV_SINGLE_LINES:
+        return True
+
+    if lowered in {"a lock (", "lock", "a locked padlock", "search results"}:
+        return True
+
+    if SOCIAL_SHARE_PATTERN.search(lowered):
+        return True
+
+    if lowered.startswith("search results") and "nist" in lowered:
+        return True
+
+    if "skip to footer" in lowered:
+        return True
+
+    # Typical scraped-site utility line.
+    if "all visitors to the nist campus must" in lowered:
+        return True
+
+    if "</gph>" in lowered:
+        return True
+
+    if re.fullmatch(r"\d+\s+of\s+\d+\s+pages?\s+of\s+\d+\s+results,\s*ordered by relevance\s*\.?", lowered):
+        return True
+
+    if re.fullmatch(r"last modified:\s*", lowered):
+        return True
+    if lowered == "last modified":
+        return True
+
+    return False
+
+
+def drop_repeated_noisy_lines(lines: list[str]) -> list[str]:
+    counts = Counter(line.lower() for line in lines if line)
+    filtered: list[str] = []
+    for line in lines:
+        if not line:
+            filtered.append(line)
+            continue
+        lowered = line.lower()
+        if counts.get(lowered, 0) >= 3 and (
+            "share to " in lowered
+            or "project links" in lowered
+            or "search results |" in lowered
+            or "official websites use .gov" in lowered
+        ):
+            continue
+        filtered.append(line)
+    return filtered
+
+
+def drop_document_noise(lines: list[str], strict: bool) -> list[str]:
+    if not lines:
+        return lines
+
+    counts = Counter(line.lower() for line in lines if line)
+    signature_counts = Counter(line_signature_for_repetition(line) for line in lines if line)
+    kept: list[str] = []
+    content_started = False
+    for idx, line in enumerate(lines):
+        if not line:
+            kept.append(line)
+            continue
+        lowered = line.lower()
+        if should_drop_front_matter_line(line, lowered, idx, content_started):
+            continue
+        if is_repeated_template_line(line, lowered, counts, signature_counts, strict):
+            continue
+        if is_layout_artifact_line(line, lowered, strict):
+            continue
+        kept.append(line)
+        if is_content_like_line(line):
+            content_started = True
+    return kept
+
+
+def should_drop_front_matter_line(line: str, lowered: str, idx: int, content_started: bool) -> bool:
+    if idx < 80:
+        if MIME_LINE_PATTERN.fullmatch(line):
+            return True
+        if re.fullmatch(r"[A-Z]{2,3}", line):
+            return True
+        if "copyright" in lowered or "public domain" in lowered:
+            return True
+    if not content_started and idx < 40:
+        if re.fullmatch(r"[A-Z0-9 .:-]{8,}", line):
+            return True
+    return False
+
+
+def is_content_like_line(line: str) -> bool:
+    alpha = sum(1 for ch in line if ch.isalpha())
+    words = re.findall(r"[A-Za-z]{3,}", line)
+    return alpha >= 25 and len(words) >= 5
+
+
+def line_stats(line: str) -> tuple[int, int, int, int]:
+    alpha = sum(1 for ch in line if ch.isalpha())
+    digits = sum(1 for ch in line if ch.isdigit())
+    punct = sum(1 for ch in line if (not ch.isalnum() and not ch.isspace()))
+    uppers = sum(1 for ch in line if ch.isupper())
+    return alpha, digits, punct, uppers
+
+
+def line_signature_for_repetition(line: str) -> str:
+    normalized = re.sub(r"\d+", "#", line.lower())
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    return normalized
+
+
+def is_repeated_template_line(
+    line: str, lowered: str, counts: Counter[str], signature_counts: Counter[str], strict: bool
+) -> bool:
+    repeat = counts.get(lowered, 0)
+    signature_repeat = signature_counts.get(line_signature_for_repetition(line), 0)
+    if repeat < 2:
+        if signature_repeat < 2:
+            return False
+    alpha, digits, punct, uppers = line_stats(line)
+    length = len(line)
+    if PATH_LIKE_PATTERN.search(line):
+        return True
+    if digits >= 4 and punct >= 6 and (repeat >= 2 or signature_repeat >= 2):
+        return True
+    if (repeat >= 3 or signature_repeat >= 3) and alpha < 45 and digits >= 2:
+        return True
+    if strict and (repeat >= 2 or signature_repeat >= 2) and length < 180 and uppers >= 10 and digits >= 2:
+        return True
+    return False
+
+
+def is_layout_artifact_line(line: str, lowered: str, strict: bool) -> bool:
+    alpha, digits, punct, uppers = line_stats(line)
+    length = max(1, len(line))
+    punct_ratio = punct / length
+    upper_ratio = uppers / max(1, alpha)
+    if PATH_LIKE_PATTERN.search(line):
+        return True
+    if "</" in line and ">" in line:
+        return True
+    if re.search(r"\b(verdate|jkt|frm|fmt|sfmt|fr doc|billing code)\b", lowered):
+        return True
+    if re.match(r"^\d{4,}\s+.+\bvol\.\b.+/.+", lowered):
+        return True
+    if re.search(r"\bon\s+[A-Z0-9]{8,}\b", line) and " with " in lowered:
+        return True
+    if digits >= 6 and punct_ratio > 0.15 and alpha < 70:
+        return True
+    if strict and upper_ratio > 0.45 and digits >= 3 and punct >= 5:
+        return True
+    return False
+
+
+def repair_broken_word_wraps(lines: list[str]) -> list[str]:
+    repaired = list(lines)
+    idx = 0
+    while idx < len(repaired) - 1:
+        current = repaired[idx]
+        nxt = repaired[idx + 1]
+        if not current or not nxt:
+            idx += 1
+            continue
+        if current.endswith((".", "?", "!", ":", ";", ")", "]")):
+            idx += 1
+            continue
+        tail_match = FRAGMENT_TAIL_PATTERN.search(current)
+        lead_match = FRAGMENT_LEAD_PATTERN.match(nxt)
+        lead_long_match = FRAGMENT_LEAD_LONG_PATTERN.match(nxt)
+        if not tail_match or not lead_match:
+            if not tail_match or not lead_long_match:
+                idx += 1
+                continue
+        tail = tail_match.group(1)
+        if tail.lower() in COMMON_FUNCTION_WORDS:
+            idx += 1
+            continue
+        lead = lead_match.group(0) if lead_match else lead_long_match.group(0)
+        if lead.lower() in COMMON_FUNCTION_WORDS:
+            idx += 1
+            continue
+        if len(tail) >= 3 and len(lead) <= 3 and (len(tail) + len(lead)) >= 6:
+            repaired[idx] = current[: -len(tail)] + tail + lead + nxt[len(lead) :]
+            repaired[idx + 1] = ""
+        idx += 1
+    return repaired
+
+
+def strip_inline_boilerplate(text: str) -> str:
+    updated = text
+    for pattern in INLINE_BOILERPLATE_PATTERNS:
+        updated = pattern.sub(" ", updated)
+    return updated.strip()
+
+
+def looks_like_navigation_scrape(text: str) -> bool:
+    lowered = text.lower()
+    separators = text.count("|") + text.count("•") + text.count(">")
+    hint_hits = sum(1 for token in NAV_SCRAPE_HINTS if token in lowered)
+    if separators >= 3 and hint_hits >= 3:
+        return True
+    if hint_hits >= 6 and "." not in text and ":" not in text:
+        return True
+    return False
 
 
 def tokenize(text: str) -> list[str]:
@@ -610,6 +1409,8 @@ def process_corpus_file(
     cleaned_root: Path,
     tagged_root: Path | None,
     profile: str,
+    vocab: Counter[str],
+    keep_tables: bool,
     tagger: Tagger | None,
     relative_paths: bool,
 ) -> ProcessOutcome:
@@ -629,7 +1430,8 @@ def process_corpus_file(
                 ),
             )
 
-        cleaned = clean_text(extraction.text, profile)
+        cleaned_result = clean_text(extraction.text, profile, source_name=path.name, vocab=vocab, keep_tables=keep_tables)
+        cleaned = cleaned_result.text
         if not cleaned:
             return ProcessOutcome(
                 None,
@@ -661,6 +1463,8 @@ def process_corpus_file(
                 source=source_record_value(path, rel, relative_paths),
                 relative_path=str(rel),
                 detected_format=fmt,
+                doc_type=cleaned_result.doc_type,
+                recommended_for_primary_policy_corpus=cleaned_result.recommended_for_primary_policy_corpus,
                 source_encoding=extraction.source_encoding,
                 converted_to_utf8=extraction.converted_to_utf8,
                 cleaned_output=str(clean_path.relative_to(cleaned_root.parent)) if relative_paths else str(clean_path.resolve()),
@@ -748,6 +1552,7 @@ def write_config(path: Path, args: argparse.Namespace, tagger_name: str, collect
         "relative_paths": args.relative_paths,
         "max_workers": args.max_workers,
         "cleaning_profile": args.cleaning_profile,
+        "keep_tables": args.keep_tables,
         "collection_name": collection,
     }
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -790,6 +1595,14 @@ def report_markdown(language: str, report: dict) -> str:
     for key, value in report["format_distribution"].items():
         lines.append(f"- `{key}`: {value}")
     lines.append("")
+
+    if "doc_type_distribution" in report:
+        section = "文档类型分布" if zh else "Document Type Distribution"
+        lines.extend([f"## {section}", ""])
+        for key, value in report["doc_type_distribution"].items():
+            lines.append(f"- `{key}`: {value}")
+        primary_label = "建议纳入主政策语料的文件数" if zh else "Recommended primary policy files"
+        lines.extend(["", f"- **{primary_label}**: {report.get('primary_policy_recommended_files', 0)}", ""])
 
     section = "错误汇总" if zh else "Error Summary"
     lines.extend([f"## {section}", ""])
@@ -886,6 +1699,8 @@ def main() -> int:
                 ErrorRecord(time.time(), entry.source, entry.relative_path, entry.detected_format, "FILE_IO_ERROR", "Cannot inspect file.", "Check file permissions.")
             )
 
+    raw_vocab = build_raw_vocab([path for path, _, fmt in corpus_jobs if fmt == "txt"])
+
     process_records: list[ProcessRecord] = []
     with ThreadPoolExecutor(max_workers=args.max_workers) as executor:
         future_map = {
@@ -897,6 +1712,8 @@ def main() -> int:
                 cleaned_root,
                 tagged_root,
                 args.cleaning_profile,
+                raw_vocab,
+                args.keep_tables,
                 tagger,
                 args.relative_paths,
             ): (path, rel)
@@ -928,6 +1745,8 @@ def main() -> int:
     clean_tokens = sum(record.tokens_clean for record in process_records)
     clean_chars = sum(record.chars_clean for record in process_records)
     converted_count = sum(1 for record in process_records if record.converted_to_utf8)
+    doc_type_distribution = Counter(record.doc_type for record in process_records)
+    primary_recommended_count = sum(1 for record in process_records if record.recommended_for_primary_policy_corpus)
 
     report = {
         "created_at_utc": utc_now(),
@@ -941,6 +1760,9 @@ def main() -> int:
         "error_distribution": dict(sorted(error_distribution.items())),
         "converted_to_utf8_files": converted_count,
         "cleaning_profile": args.cleaning_profile,
+        "keep_tables": args.keep_tables,
+        "doc_type_distribution": dict(sorted(doc_type_distribution.items())),
+        "primary_policy_recommended_files": primary_recommended_count,
         "cleaned_corpus": {
             "file_count": len(process_records),
             "token_count": clean_tokens,
